@@ -18,6 +18,11 @@ data_dir = ""
 X_test = np.load(os.path.join(data_dir, './processed_test_data.npy'))
 # y_test = np.load(os.path.join(data_dir, '/home/r13945042/aws/testdata/y_train.npy'))
 
+# ADD
+test_data = pd.read_csv(os.path.join(data_dir, './processed_test_data.csv'))  # 假設原始測試資料在這個檔案
+custumid = test_data['CUST_ID'].values  # 假設欄位名稱為 'custumid'
+# 
+
 # 轉為 tensor
 X_test_tensor = torch.FloatTensor(X_test).to(device)
 # y_test_tensor = torch.FloatTensor(y_test).to(device)
@@ -71,7 +76,7 @@ class TransformerModel(nn.Module):
 # model_path = "/home/r13945042/aws/model.pt"
 # torch.save(model.state_dict(), model_path)
 # print(f"模型已儲存至 {model_path}")
-model_path = "./model.pt"
+model_path = "./best_model/model.pt"
 model = torch.load(model_path, weights_only=False)
 model.to(device)
 # 載入已儲存的模型
@@ -83,7 +88,7 @@ print("模型已載入並設置為評估模式")
 # ----------- 用 test set 進行 inference -----------
 with torch.no_grad():
     y_proba = torch.sigmoid(model(X_test_tensor)).cpu().numpy().flatten()
-y_true = y_test
+# y_true = y_test
 # best = {'threshold': 0.5, 'f1': 0.0}
 # for t in np.linspace(0, 1, 101):
 #     y_pred_t = (y_proba >= t).astype(int)
@@ -92,7 +97,7 @@ y_true = y_test
 #         best = {'threshold': t, 'f1': f1}
 # print(f"最佳閾值: {best['threshold']:.2f}, F1={best['f1']:.3f}")
 
-threshold = 0.46
+threshold = 0.52
 y_pred = (y_proba >= threshold).astype(int)
 
 # print("Test Classification Report:")
@@ -104,6 +109,7 @@ y_pred = (y_proba >= threshold).astype(int)
 results_path = "./test_predictions.csv"
 results = pd.DataFrame({
     # 'True_Label': y_true,
+    'CUST_ID': custumid,  # 加入 custumid 欄位
     'Predicted_Label': y_pred,
     'Probability': y_proba
 })

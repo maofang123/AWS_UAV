@@ -29,7 +29,7 @@ y_test_tensor = torch.FloatTensor(y_test).to(device)
 
 # DataLoader
 train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-batch_size = 256
+batch_size = 2048
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 # 定義 Focal Loss
@@ -87,17 +87,52 @@ class TransformerModel(nn.Module):
         # 輸出層
         return self.output_layers(x)
 
-if __name__ == '__main__':
+# 定義 WarmUpLR 類別
+class WarmUpLR:
+    def __init__(self, optimizer, warmup_steps, after_scheduler):
+        self.optimizer = optimizer
+        self.warmup_steps = warmup_steps
+        self.after_scheduler = after_scheduler
+        self.finished = False
+        self.step_num = 0
 
+    def step(self, metrics=None):
+        if self.finished:
+            if metrics is not None:
+                self.after_scheduler.step(metrics)
+            return
+        self.step_num += 1
+        if self.step_num <= self.warmup_steps:
+            lr_scale = self.step_num / self.warmup_steps
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = lr_scale * param_group['initial_lr']
+        else:
+            self.finished = True
+            if metrics is not None:
+                self.after_scheduler.step(metrics)
+
+if __name__ == '__main__':
     # 初始化模型、損失函數和優化器
-    model = TransformerModel(input_dim=X_train.shape[1], dim=32, heads=4, depth=6, dropout=0.1).to(device)
-    criterion = FocalLoss(alpha=0.9, gamma=2.0)
-    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
+    model = TransformerModel(input_dim=X_train.shape[1], dim=64, heads=2, depth=1, dropout=0.1).to(device)
+    criterion = FocalLoss(alpha=0.99, gamma=2.0)
+    optimizer = optim.AdamW(model.parameters(), lr=0.01, weight_decay=1e-4)
+
+    # 設定初始學習率參數
+    for param_group in optimizer.param_groups:
+        param_group['initial_lr'] = 0.01
+
+    # 設定 warm-up 步數
+    warmup_steps = 10
+
+    # 使用 ReduceLROnPlateau 作為 warm-up 後的學習率調度器
+    scheduler_after_warmup = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
+
+    # 包裝 warm-up 調度器
+    warmup_scheduler = WarmUpLR(optimizer, warmup_steps, scheduler_after_warmup)
 
     # ----------- 訓練模型 -----------
     num_epochs = 200
-    patience = 30
+    patience = 10
     best_val_loss = float('inf')
     best_model_weights = None
     counter = 0
@@ -120,7 +155,10 @@ if __name__ == '__main__':
             val_outputs = model(X_val_tensor).squeeze()
             val_loss = criterion(val_outputs, y_val_tensor).item()
         print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.4f}, Val Loss: {val_loss:.4f}")
-        scheduler.step(val_loss)
+        
+        # 使用 warm-up 調度器並傳入驗證損失
+        warmup_scheduler.step(val_loss)
+        
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_model_weights = model.state_dict()

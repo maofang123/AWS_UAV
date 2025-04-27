@@ -113,7 +113,7 @@ sampler = Pipeline([
 X_resampled, y_resampled = sampler.fit_resample(X_selected, y)
 
 # 分割資料為訓練、測試和驗證集
-X_train, X_temp, y_train, y_temp = train_test_split(X_resampled, y_resampled, test_size=0.3, random_state=42, stratify=y_resampled)
+X_train, X_temp, y_train, y_temp = train_test_split(X_resampled, y_resampled, test_size=0.2, random_state=42, stratify=y_resampled)
 X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42, stratify=y_temp)
 
 output_dir = "./feature"

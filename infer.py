@@ -15,7 +15,9 @@ print(f"使用設備: {device}")
 
 # 載入前處理後的資料
 data_dir = ""
+# X_test = np.load(os.path.join(data_dir, './challenge_threshold.npy'))
 X_test = np.load(os.path.join(data_dir, './feature/X_test.npy'))
+# y_test = np.load(os.path.join(data_dir, './y_challenge.npy'))
 y_test = np.load(os.path.join(data_dir, './feature/y_test.npy'))
 
 # 轉為 tensor
@@ -71,7 +73,7 @@ class TransformerModel(nn.Module):
 # model_path = "/home/r13945042/aws/model.pt"
 # torch.save(model.state_dict(), model_path)
 # print(f"模型已儲存至 {model_path}")
-model_path = "./model.pt"
+model_path = "./best_model/model.pt"
 model = torch.load(model_path, weights_only=False)
 model.to(device)
 # 載入已儲存的模型
@@ -92,7 +94,7 @@ for t in np.linspace(0, 1, 101):
         best = {'threshold': t, 'f1': f1}
 print(f"最佳閾值: {best['threshold']:.2f}, F1={best['f1']:.3f}")
 
-threshold = best['threshold']
+threshold = 0.52
 y_pred = (y_proba >= threshold).astype(int)
 
 print("Test Classification Report:")
@@ -101,7 +103,7 @@ print("Test Confusion Matrix:")
 print(confusion_matrix(y_true, y_pred))
 
 # 儲存預測結果
-results_path = "./testvv_predictions.csv"
+results_path = "./nononono_predictions.csv"
 results = pd.DataFrame({
     'True_Label': y_true,
     'Predicted_Label': y_pred,
